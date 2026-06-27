@@ -143,19 +143,27 @@ function syncToernooien_(ss, betalingen) {
   var aanmSheet    = ss.getSheetByName("Aanmeldingen");
   if (!birdiesSheet || !aanmSheet) return 0;
 
-  // Toernooien uit Birdies (rij 2 t/m einde = T1, T2, …)
+  // Alle toernooien uit Birdies (rij 2 t/m einde)
   var birdiesData = birdiesSheet.getDataRange().getValues();
-  var tournaments = [];
+  var allBirdies = [];
   for (var i = 1; i < birdiesData.length; i++) {
-    tournaments.push({
-      label:   "T" + i,
-      birdies: Number(birdiesData[i][2]) || 0
-    });
+    allBirdies.push(Number(birdiesData[i][2]) || 0);
   }
 
-  // Welke labels staan al in Betalingen?
-  var lastCol  = betalingen.getLastColumn();
-  var headers  = betalingen.getRange(1, 1, 1, Math.max(lastCol, 1)).getValues()[0];
+  // Groepen van 3 toernooien: T1-T3, T4-T6, …
+  // Een groep wordt pas toegevoegd als alle 3 toernooien in Birdies staan.
+  var groups = [];
+  for (var g = 0; g * 3 + 2 < allBirdies.length; g++) {
+    var from  = g * 3 + 1;
+    var to    = from + 2;
+    var label = "T" + from + "-T" + to;
+    var totalBirdies = allBirdies[from - 1] + allBirdies[from] + allBirdies[from + 1];
+    groups.push({ label: label, birdies: totalBirdies });
+  }
+
+  // Welke groepen staan al in Betalingen?
+  var lastCol = betalingen.getLastColumn();
+  var headers = betalingen.getRange(1, 1, 1, Math.max(lastCol, 1)).getValues()[0];
   var existing = {};
   for (var h = 0; h < headers.length; h++) {
     var hdr = headers[h].toString();
@@ -164,67 +172,55 @@ function syncToernooien_(ss, betalingen) {
     }
   }
 
-  // per_birdie per sponsor (naam → bedrag)
-  var aanmData   = aanmSheet.getDataRange().getValues();
+  // per_birdie per sponsor
+  var aanmData = aanmSheet.getDataRange().getValues();
   var perBirdieMap = {};
   for (var s = 1; s < aanmData.length; s++) {
     if (aanmData[s][1]) perBirdieMap[aanmData[s][1]] = parseFloat(aanmData[s][5]) || 0;
   }
 
   // Sponsornamen uit Betalingen
-  var lastRow    = betalingen.getLastRow();
+  var lastRow = betalingen.getLastRow();
   var sponsorNames = lastRow > 1
     ? betalingen.getRange(2, 1, lastRow - 1, 1).getValues()
     : [];
 
   var added = 0;
-  for (var t = 0; t < tournaments.length; t++) {
-    var toernooi = tournaments[t];
-    if (existing[toernooi.label]) continue;
+  for (var t = 0; t < groups.length; t++) {
+    var groep = groups[t];
+    if (existing[groep.label]) continue;
 
     var bedragCol  = betalingen.getLastColumn() + 1;
     var betaaldCol = bedragCol + 1;
 
-    // Kolomkoppen
-    betalingen.getRange(1, bedragCol).setValue(toernooi.label + " BEDRAG");
-    betalingen.getRange(1, betaaldCol).setValue(toernooi.label + " BETAALD");
+    betalingen.getRange(1, bedragCol).setValue(groep.label + " BEDRAG");
+    betalingen.getRange(1, betaaldCol).setValue(groep.label + " BETAALD");
     betalingen.getRange(1, bedragCol, 1, 2)
-      .setBackground("#9D174D")
-      .setFontColor("#ffffff")
-      .setFontWeight("bold");
-    betalingen.setColumnWidth(bedragCol, 120);
-    betalingen.setColumnWidth(betaaldCol, 110);
+      .setBackground("#9D174D").setFontColor("#ffffff").setFontWeight("bold");
+    betalingen.setColumnWidth(bedragCol, 130);
+    betalingen.setColumnWidth(betaaldCol, 120);
 
-    // Bedrag + status per sponsor
     for (var r = 0; r < sponsorNames.length; r++) {
       var naam = sponsorNames[r][0];
       if (!naam) continue;
-      var bedrag = (perBirdieMap[naam] || 0) * toernooi.birdies;
+      var bedrag = (perBirdieMap[naam] || 0) * groep.birdies;
       betalingen.getRange(r + 2, bedragCol).setValue(bedrag).setNumberFormat('€#,##0.00');
       betalingen.getRange(r + 2, betaaldCol).setValue("Open");
     }
 
-    // Dropdown + voorwaardelijke opmaak voor de BETAALD-kolom
     if (sponsorNames.length > 0) {
       var dataRange = betalingen.getRange(2, betaaldCol, sponsorNames.length, 1);
       dataRange.setDataValidation(
         SpreadsheetApp.newDataValidation()
-          .requireValueInList(["Open", "Betaald"], true)
-          .build()
+          .requireValueInList(["Open", "Betaald"], true).build()
       );
       var rules = betalingen.getConditionalFormatRules();
-      rules.push(
-        SpreadsheetApp.newConditionalFormatRule()
-          .whenTextEqualTo("Betaald")
-          .setBackground("#d1fae5").setFontColor("#065f46")
-          .setRanges([dataRange]).build()
-      );
-      rules.push(
-        SpreadsheetApp.newConditionalFormatRule()
-          .whenTextEqualTo("Open")
-          .setBackground("#fee2e2").setFontColor("#991b1b")
-          .setRanges([dataRange]).build()
-      );
+      rules.push(SpreadsheetApp.newConditionalFormatRule()
+        .whenTextEqualTo("Betaald").setBackground("#d1fae5").setFontColor("#065f46")
+        .setRanges([dataRange]).build());
+      rules.push(SpreadsheetApp.newConditionalFormatRule()
+        .whenTextEqualTo("Open").setBackground("#fee2e2").setFontColor("#991b1b")
+        .setRanges([dataRange]).build());
       betalingen.setConditionalFormatRules(rules);
     }
 
@@ -233,7 +229,7 @@ function syncToernooien_(ss, betalingen) {
   return added;
 }
 
-// Toont per sponsor per toernooi het bedrag en de betaalstatus.
+// Toont per sponsor het openstaande bedrag per groep van 3 toernooien.
 function genereerBetaalverzoek() {
   var ss         = SpreadsheetApp.openById(SHEET_ID);
   var betalingen = ss.getSheetByName("Betalingen");
@@ -245,33 +241,25 @@ function genereerBetaalverzoek() {
   var data    = betalingen.getDataRange().getValues();
   var headers = data[0];
   var lines   = [];
-  var iemandOpen = false;
 
   for (var i = 1; i < data.length; i++) {
     var naam = data[i][0];
     if (!naam) continue;
 
-    var sponsorLines = [];
-    var totaalOpen = 0;
-
+    var totaal = 0;
+    var openGroepen = [];
     for (var j = 1; j + 1 < headers.length; j += 2) {
-      var label   = headers[j].replace(" BEDRAG", "").trim();
-      var bedrag  = parseFloat(data[i][j]) || 0;
-      var status  = data[i][j + 1] || "Open";
-      var vinkje  = status === "Betaald" ? "✓" : "○";
-      sponsorLines.push("  " + vinkje + " " + label + ": €" + bedrag.toFixed(2) + "  [" + status + "]");
-      if (status === "Open") totaalOpen += bedrag;
+      if (data[i][j + 1] === "Open" && data[i][j]) {
+        totaal += parseFloat(data[i][j]) || 0;
+        openGroepen.push(headers[j].replace(" BEDRAG", "").trim());
+      }
     }
-
-    if (sponsorLines.length > 0) {
-      if (totaalOpen > 0) iemandOpen = true;
-      lines.push(naam + (totaalOpen > 0 ? "  (open: €" + totaalOpen.toFixed(2) + ")" : "  ✓ alles betaald"));
-      lines = lines.concat(sponsorLines);
-      lines.push("");
+    if (totaal > 0) {
+      lines.push(naam + "  →  €" + totaal.toFixed(2) + "  (" + openGroepen.join(", ") + ")");
     }
   }
 
-  if (!iemandOpen) {
+  if (lines.length === 0) {
     SpreadsheetApp.getUi().alert("✓ Alle sponsors hebben betaald!");
     return;
   }
