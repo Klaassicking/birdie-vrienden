@@ -15,7 +15,7 @@
 //   9. Plak die URL in index.html bij APPS_SCRIPT_URL.
 // ─────────────────────────────────────────────────────────────────────────────
 
-// Naam van het tabblad in je Google Sheet
+var SHEET_ID   = "1OFt91SSoiKGjSYIfT_mmaTUGJ2yKZSAH55oXfFvBwR8";
 var SHEET_NAME = "Aanmeldingen";
 
 // Kolomvolgorde in de sheet (pas aan als je kolommen wilt herordenen)
@@ -25,7 +25,7 @@ function doPost(e) {
   try {
     var data = JSON.parse(e.postData.contents);
 
-    var ss    = SpreadsheetApp.openById("1OFt91SSoiKGjSYIfT_mmaTUGJ2yKZSAH55oXfFvBwR8");
+    var ss    = SpreadsheetApp.openById(SHEET_ID);
     var sheet = ss.getSheetByName(SHEET_NAME);
 
     // Maak het tabblad aan als het nog niet bestaat
@@ -73,8 +73,213 @@ function buildResponse(obj, isError) {
 // Eenmalig uitvoeren via de Apps Script editor: selecteer setupOverzicht en
 // klik op "Uitvoeren". Maakt de tabbladen "Birdies" en "Overzicht" aan.
 // ─────────────────────────────────────────────────────────────────────────────
+function onOpen() {
+  SpreadsheetApp.getUi()
+    .createMenu('Birdie Vrienden')
+    .addItem('Setup Overzicht + Birdies', 'setupOverzicht')
+    .addItem('Setup Betalingen', 'setupBetalingen')
+    .addSeparator()
+    .addItem('Sync toernooien naar Betalingen', 'syncToernooien')
+    .addSeparator()
+    .addItem('Genereer betaalverzoek', 'genereerBetaalverzoek')
+    .addToUi();
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Betalingen – matrix sponsors × toernooien met betaalstatus
+// ─────────────────────────────────────────────────────────────────────────────
+
+function setupBetalingen() {
+  var ss = SpreadsheetApp.openById(SHEET_ID);
+
+  var sheet = ss.getSheetByName("Betalingen");
+  if (!sheet) {
+    sheet = ss.insertSheet("Betalingen");
+  } else {
+    sheet.clear();
+    sheet.clearDataValidations();
+    sheet.setConditionalFormatRules([]);
+  }
+
+  sheet.appendRow(["NAAM"]);
+  sheet.setFrozenRows(1);
+  sheet.setFrozenColumns(1);
+  sheet.setColumnWidth(1, 180);
+  sheet.getRange("A1")
+    .setBackground("#9D174D")
+    .setFontColor("#ffffff")
+    .setFontWeight("bold");
+
+  var aanmSheet = ss.getSheetByName("Aanmeldingen");
+  if (aanmSheet) {
+    var aanmData = aanmSheet.getDataRange().getValues();
+    for (var i = 1; i < aanmData.length; i++) {
+      if (aanmData[i][1]) sheet.appendRow([aanmData[i][1]]);
+    }
+  }
+
+  syncToernooien_(ss, sheet);
+  SpreadsheetApp.getUi().alert("Betalingen-tabblad aangemaakt!");
+}
+
+// Voegt toernooien toe die nog niet in Betalingen staan.
+// Veilig om meerdere keren te draaien (idempotent).
+function syncToernooien() {
+  var ss = SpreadsheetApp.openById(SHEET_ID);
+  var sheet = ss.getSheetByName("Betalingen");
+  if (!sheet) {
+    SpreadsheetApp.getUi().alert("Maak eerst het Betalingen-tabblad aan via Setup Betalingen.");
+    return;
+  }
+  var added = syncToernooien_(ss, sheet);
+  SpreadsheetApp.getUi().alert(
+    added === 0 ? "Alles is al up-to-date." : added + " nieuw(e) toernooi(en) toegevoegd."
+  );
+}
+
+function syncToernooien_(ss, betalingen) {
+  var birdiesSheet = ss.getSheetByName("Birdies");
+  var aanmSheet    = ss.getSheetByName("Aanmeldingen");
+  if (!birdiesSheet || !aanmSheet) return 0;
+
+  // Toernooien uit Birdies (rij 2 t/m einde = T1, T2, …)
+  var birdiesData = birdiesSheet.getDataRange().getValues();
+  var tournaments = [];
+  for (var i = 1; i < birdiesData.length; i++) {
+    tournaments.push({
+      label:   "T" + i,
+      birdies: Number(birdiesData[i][2]) || 0
+    });
+  }
+
+  // Welke labels staan al in Betalingen?
+  var lastCol  = betalingen.getLastColumn();
+  var headers  = betalingen.getRange(1, 1, 1, Math.max(lastCol, 1)).getValues()[0];
+  var existing = {};
+  for (var h = 0; h < headers.length; h++) {
+    var hdr = headers[h].toString();
+    if (hdr.indexOf(" BETAALD") !== -1) {
+      existing[hdr.replace(" BETAALD", "").trim()] = true;
+    }
+  }
+
+  // per_birdie per sponsor (naam → bedrag)
+  var aanmData   = aanmSheet.getDataRange().getValues();
+  var perBirdieMap = {};
+  for (var s = 1; s < aanmData.length; s++) {
+    if (aanmData[s][1]) perBirdieMap[aanmData[s][1]] = parseFloat(aanmData[s][5]) || 0;
+  }
+
+  // Sponsornamen uit Betalingen
+  var lastRow    = betalingen.getLastRow();
+  var sponsorNames = lastRow > 1
+    ? betalingen.getRange(2, 1, lastRow - 1, 1).getValues()
+    : [];
+
+  var added = 0;
+  for (var t = 0; t < tournaments.length; t++) {
+    var toernooi = tournaments[t];
+    if (existing[toernooi.label]) continue;
+
+    var bedragCol  = betalingen.getLastColumn() + 1;
+    var betaaldCol = bedragCol + 1;
+
+    // Kolomkoppen
+    betalingen.getRange(1, bedragCol).setValue(toernooi.label + " BEDRAG");
+    betalingen.getRange(1, betaaldCol).setValue(toernooi.label + " BETAALD");
+    betalingen.getRange(1, bedragCol, 1, 2)
+      .setBackground("#9D174D")
+      .setFontColor("#ffffff")
+      .setFontWeight("bold");
+    betalingen.setColumnWidth(bedragCol, 120);
+    betalingen.setColumnWidth(betaaldCol, 110);
+
+    // Bedrag + status per sponsor
+    for (var r = 0; r < sponsorNames.length; r++) {
+      var naam = sponsorNames[r][0];
+      if (!naam) continue;
+      var bedrag = (perBirdieMap[naam] || 0) * toernooi.birdies;
+      betalingen.getRange(r + 2, bedragCol).setValue(bedrag).setNumberFormat('€#,##0.00');
+      betalingen.getRange(r + 2, betaaldCol).setValue("Open");
+    }
+
+    // Dropdown + voorwaardelijke opmaak voor de BETAALD-kolom
+    if (sponsorNames.length > 0) {
+      var dataRange = betalingen.getRange(2, betaaldCol, sponsorNames.length, 1);
+      dataRange.setDataValidation(
+        SpreadsheetApp.newDataValidation()
+          .requireValueInList(["Open", "Betaald"], true)
+          .build()
+      );
+      var rules = betalingen.getConditionalFormatRules();
+      rules.push(
+        SpreadsheetApp.newConditionalFormatRule()
+          .whenTextEqualTo("Betaald")
+          .setBackground("#d1fae5").setFontColor("#065f46")
+          .setRanges([dataRange]).build()
+      );
+      rules.push(
+        SpreadsheetApp.newConditionalFormatRule()
+          .whenTextEqualTo("Open")
+          .setBackground("#fee2e2").setFontColor("#991b1b")
+          .setRanges([dataRange]).build()
+      );
+      betalingen.setConditionalFormatRules(rules);
+    }
+
+    added++;
+  }
+  return added;
+}
+
+// Toont per sponsor het totaal van alle open (onbetaalde) toernooien.
+function genereerBetaalverzoek() {
+  var ss         = SpreadsheetApp.openById(SHEET_ID);
+  var betalingen = ss.getSheetByName("Betalingen");
+  if (!betalingen) {
+    SpreadsheetApp.getUi().alert("Betalingen-tabblad niet gevonden.");
+    return;
+  }
+
+  var data    = betalingen.getDataRange().getValues();
+  var headers = data[0];
+  var lines   = [];
+
+  for (var i = 1; i < data.length; i++) {
+    var naam = data[i][0];
+    if (!naam) continue;
+
+    var totaal = 0;
+    var open   = [];
+    for (var j = 1; j + 1 < headers.length; j += 2) {
+      if (data[i][j + 1] === "Open" && data[i][j]) {
+        totaal += parseFloat(data[i][j]) || 0;
+        open.push(headers[j].replace(" BEDRAG", "").trim());
+      }
+    }
+    if (totaal > 0) {
+      lines.push(naam + "  →  €" + totaal.toFixed(2) + "  (" + open.join(", ") + ")");
+    }
+  }
+
+  if (lines.length === 0) {
+    SpreadsheetApp.getUi().alert("✓ Alle sponsors hebben betaald!");
+    return;
+  }
+
+  SpreadsheetApp.getUi().alert(
+    "BETAALVERZOEK OVERZICHT\n" +
+    "────────────────────────────────────\n\n" +
+    lines.join("\n")
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Eenmalig uitvoeren via de Apps Script editor: selecteer setupOverzicht en
+// klik op "Uitvoeren". Maakt de tabbladen "Birdies" en "Overzicht" aan.
+// ─────────────────────────────────────────────────────────────────────────────
 function setupOverzicht() {
-  var ss = SpreadsheetApp.openById("1OFt91SSoiKGjSYIfT_mmaTUGJ2yKZSAH55oXfFvBwR8");
+  var ss = SpreadsheetApp.openById(SHEET_ID);
 
   // ── Tabblad "Birdies" ──────────────────────────────────────────────────────
   var birdiesSheet = ss.getSheetByName("Birdies");
@@ -178,5 +383,5 @@ function setupOverzicht() {
     .build();
   overzichtSheet.setConditionalFormatRules([rule]);
 
-  SpreadsheetApp.getUi().alert("Klaar! Tabbladen 'Birdies' en 'Overzicht' zijn aangemaakt.");
+  SpreadsheetApp.getUi().alert("Klaar! Tabbladen 'Birdies' en 'Overzicht' zijn aangemaakt.\n\nVoer daarna 'Setup Betalingen' uit via het Birdie Vrienden-menu.");
 }
