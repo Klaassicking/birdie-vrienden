@@ -72,11 +72,33 @@ function onOpen() {
     .addItem('Setup Betalingen',                 'setupBetalingen')
     .addItem('Refresh Overzicht formulas',       'refreshOverzichtFormulas')
     .addItem('Setup Aanmeldingen (ACTIEF kolom)','setupAanmeldingenKolommen')
+    .addItem('Voeg datumpicker toe aan Birdies', 'setupBirdiesDatumPicker')
     .addSeparator()
     .addItem('Sync toernooien naar Betalingen',  'syncToernooien')
     .addSeparator()
     .addItem('Genereer betaalverzoek',           'genereerBetaalverzoek')
     .addToUi();
+}
+
+// Voegt datumvalidatie toe aan Birdies!A zodat de datumpicker verschijnt.
+// Raakt geen bestaande data aan.
+function setupBirdiesDatumPicker() {
+  var ss    = SpreadsheetApp.openById(SHEET_ID);
+  var sheet = ss.getSheetByName("Birdies");
+  if (!sheet) {
+    SpreadsheetApp.getUi().alert("Birdies-tabblad niet gevonden.");
+    return;
+  }
+  var range = sheet.getRange("A2:A200");
+  range.setNumberFormat("dd-mm-yyyy");
+  range.setDataValidation(
+    SpreadsheetApp.newDataValidation()
+      .requireDateAfter(new Date(2000, 0, 1))
+      .setAllowInvalid(false)
+      .setHelpText("Kies een datum via de kalender.")
+      .build()
+  );
+  SpreadsheetApp.getUi().alert("Datumpicker toegevoegd aan de Birdies-tab.");
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -571,6 +593,13 @@ function setupOverzicht() {
   birdiesSheet.getRange("A1:C1")
     .setBackground("#1e1b2e").setFontColor("#ffffff").setFontWeight("bold");
   birdiesSheet.getRange("A2:A200").setNumberFormat("dd-mm-yyyy");
+  birdiesSheet.getRange("A2:A200").setDataValidation(
+    SpreadsheetApp.newDataValidation()
+      .requireDateAfter(new Date(2000, 0, 1))
+      .setAllowInvalid(false)
+      .setHelpText("Kies een datum via de kalender.")
+      .build()
+  );
 
   var overzichtSheet = ss.getSheetByName("Overzicht");
   if (!overzichtSheet) {
