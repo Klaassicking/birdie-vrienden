@@ -151,22 +151,26 @@ function syncToernooien_(ss, betalingen) {
   var aanmSheet    = ss.getSheetByName("Aanmeldingen");
   if (!birdiesSheet || !aanmSheet) return 0;
 
-  // Alle toernooien uit Birdies (rij 2 t/m einde)
+  // Alle toernooien uit Birdies (rij 2 t/m einde), inclusief datum
   var birdiesData = birdiesSheet.getDataRange().getValues();
-  var allBirdies = [];
+  var allTournaments = [];
   for (var i = 1; i < birdiesData.length; i++) {
-    allBirdies.push(Number(birdiesData[i][2]) || 0);
+    allTournaments.push({
+      date:    birdiesData[i][0] ? new Date(birdiesData[i][0]) : null,
+      birdies: Number(birdiesData[i][2]) || 0
+    });
   }
 
   // Groepen van 3 toernooien: T1-T3, T4-T6, …
   // Een groep wordt pas toegevoegd als alle 3 toernooien in Birdies staan.
   var groups = [];
-  for (var g = 0; g * 3 + 2 < allBirdies.length; g++) {
+  for (var g = 0; g * 3 + 2 < allTournaments.length; g++) {
     var from  = g * 3 + 1;
     var to    = from + 2;
-    var label = "T" + from + "-T" + to;
-    var totalBirdies = allBirdies[from - 1] + allBirdies[from] + allBirdies[from + 1];
-    groups.push({ label: label, birdies: totalBirdies });
+    groups.push({
+      label:       "T" + from + "-T" + to,
+      tournaments: [allTournaments[from - 1], allTournaments[from], allTournaments[from + 1]]
+    });
   }
 
   // Welke groepen staan al in Betalingen?
@@ -180,11 +184,16 @@ function syncToernooien_(ss, betalingen) {
     }
   }
 
-  // per_birdie per sponsor
+  // Sponsor map: naam → { perBirdie, joinDate }
   var aanmData = aanmSheet.getDataRange().getValues();
-  var perBirdieMap = {};
+  var sponsorMap = {};
   for (var s = 1; s < aanmData.length; s++) {
-    if (aanmData[s][1]) perBirdieMap[aanmData[s][1]] = parseFloat(aanmData[s][5]) || 0;
+    if (aanmData[s][1]) {
+      sponsorMap[aanmData[s][1]] = {
+        perBirdie: parseFloat(aanmData[s][5]) || 0,
+        joinDate:  aanmData[s][0] ? new Date(aanmData[s][0]) : null
+      };
+    }
   }
 
   // Sponsornamen uit Betalingen
@@ -231,7 +240,16 @@ function syncToernooien_(ss, betalingen) {
     for (var r = 0; r < sponsorNames.length; r++) {
       var naam = sponsorNames[r][0];
       if (!naam) continue;
-      var bedrag = (perBirdieMap[naam] || 0) * groep.birdies;
+      var sponsor   = sponsorMap[naam] || { perBirdie: 0, joinDate: null };
+      // Tel alleen birdies mee van toernooien na de joindatum
+      var eligibleBirdies = 0;
+      for (var ti = 0; ti < groep.tournaments.length; ti++) {
+        var toernooi = groep.tournaments[ti];
+        if (!sponsor.joinDate || !toernooi.date || toernooi.date >= sponsor.joinDate) {
+          eligibleBirdies += toernooi.birdies;
+        }
+      }
+      var bedrag = sponsor.perBirdie * eligibleBirdies;
       betalingen.getRange(r + 2, bedragCol).setValue(bedrag).setNumberFormat('€#,##0.00');
       betalingen.getRange(r + 2, betaaldCol).setValue("Open");
     }
