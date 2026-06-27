@@ -25,7 +25,7 @@ function doPost(e) {
   try {
     var data = JSON.parse(e.postData.contents);
 
-    var ss    = SpreadsheetApp.getActiveSpreadsheet();
+    var ss    = SpreadsheetApp.openById("1OFt91SSoiKGjSYIfT_mmaTUGJ2yKZSAH55oXfFvBwR8");
     var sheet = ss.getSheetByName(SHEET_NAME);
 
     // Maak het tabblad aan als het nog niet bestaat
@@ -67,4 +67,116 @@ function buildResponse(obj, isError) {
     .createTextOutput(JSON.stringify(obj))
     .setMimeType(ContentService.MimeType.JSON);
   return output;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Eenmalig uitvoeren via de Apps Script editor: selecteer setupOverzicht en
+// klik op "Uitvoeren". Maakt de tabbladen "Birdies" en "Overzicht" aan.
+// ─────────────────────────────────────────────────────────────────────────────
+function setupOverzicht() {
+  var ss = SpreadsheetApp.openById("1OFt91SSoiKGjSYIfT_mmaTUGJ2yKZSAH55oXfFvBwR8");
+
+  // ── Tabblad "Birdies" ──────────────────────────────────────────────────────
+  var birdiesSheet = ss.getSheetByName("Birdies");
+  if (!birdiesSheet) {
+    birdiesSheet = ss.insertSheet("Birdies");
+  } else {
+    birdiesSheet.clear();
+  }
+
+  birdiesSheet.appendRow(["DATUM", "RONDE / OMSCHRIJVING", "AANTAL BIRDIES"]);
+  birdiesSheet.setFrozenRows(1);
+
+  // Kolombreedte
+  birdiesSheet.setColumnWidth(1, 120);
+  birdiesSheet.setColumnWidth(2, 220);
+  birdiesSheet.setColumnWidth(3, 160);
+
+  // Opmaak kolomkop
+  birdiesSheet.getRange("A1:C1")
+    .setBackground("#1e1b2e")
+    .setFontColor("#ffffff")
+    .setFontWeight("bold");
+
+  // Datumnotatie kolom A (rij 2 t/m 200)
+  birdiesSheet.getRange("A2:A200")
+    .setNumberFormat("dd-mm-yyyy");
+
+  // ── Tabblad "Overzicht" ───────────────────────────────────────────────────
+  var overzichtSheet = ss.getSheetByName("Overzicht");
+  if (!overzichtSheet) {
+    overzichtSheet = ss.insertSheet("Overzicht");
+  } else {
+    overzichtSheet.clear();
+  }
+
+  // Kolomkoppen
+  var headers = [
+    "NAAM", "EMAIL", "BEDRIJF", "PER BIRDIE (€)",
+    "MAX SEIZOEN (€)", "TOTAAL BIRDIES", "BEREKEND BEDRAG (€)", "CAP BEREIKT?"
+  ];
+  overzichtSheet.appendRow(headers);
+  overzichtSheet.setFrozenRows(1);
+
+  // Kolombreedte
+  [140, 200, 160, 130, 130, 120, 160, 110].forEach(function(w, i) {
+    overzichtSheet.setColumnWidth(i + 1, w);
+  });
+
+  // Opmaak kolomkop
+  overzichtSheet.getRange("A1:H1")
+    .setBackground("#9D174D")
+    .setFontColor("#ffffff")
+    .setFontWeight("bold");
+
+  // Formules voor rijen 2 t/m 200 (trekken data uit Aanmeldingen + Birdies)
+  //
+  // Aanmeldingen kolommen:
+  //   B=naam  C=email  E=bedrijf  F=per_birdie  G=max_seizoen
+  //
+  // Totaal birdies = SOM van Birdies!C:C (dezelfde waarde voor iedereen)
+  // Berekend bedrag = per_birdie * totaal_birdies, afgetopt op max_seizoen
+  var formulas = [];
+  for (var r = 2; r <= 200; r++) {
+    var aanmRow = r; // Aanmeldingen en Overzicht lopen gelijk op
+    formulas.push([
+      // A: naam
+      '=IF(Aanmeldingen!B' + aanmRow + '="";"";Aanmeldingen!B' + aanmRow + ')',
+      // B: email
+      '=IF(Aanmeldingen!C' + aanmRow + '="";"";Aanmeldingen!C' + aanmRow + ')',
+      // C: bedrijf
+      '=IF(Aanmeldingen!E' + aanmRow + '="";"";Aanmeldingen!E' + aanmRow + ')',
+      // D: per_birdie
+      '=IF(Aanmeldingen!F' + aanmRow + '="";"";Aanmeldingen!F' + aanmRow + ')',
+      // E: max_seizoen
+      '=IF(Aanmeldingen!G' + aanmRow + '="";"–";Aanmeldingen!G' + aanmRow + ')',
+      // F: totaal birdies (som van het Birdies-tabblad, zelfde voor iedereen)
+      '=IF(Aanmeldingen!B' + aanmRow + '="";"";SUM(Birdies!C:C))',
+      // G: berekend bedrag
+      '=IF(Aanmeldingen!B' + aanmRow + '="";"";' +
+        'IF(Aanmeldingen!G' + aanmRow + '="";Aanmeldingen!F' + aanmRow + '*SUM(Birdies!C:C);' +
+        'MIN(Aanmeldingen!F' + aanmRow + '*SUM(Birdies!C:C);Aanmeldingen!G' + aanmRow + ')))',
+      // H: cap bereikt?
+      '=IF(Aanmeldingen!B' + aanmRow + '="";"";' +
+        'IF(Aanmeldingen!G' + aanmRow + '="";"–";' +
+        'IF(Aanmeldingen!F' + aanmRow + '*SUM(Birdies!C:C)>=Aanmeldingen!G' + aanmRow + ';"✓ Ja";"Nee")))',
+    ]);
+  }
+
+  overzichtSheet.getRange(2, 1, 199, 8).setFormulas(formulas);
+
+  // Getalnotatie voor bedragen
+  overzichtSheet.getRange("D2:E200").setNumberFormat('€#,##0.00');
+  overzichtSheet.getRange("G2:G200").setNumberFormat('€#,##0.00');
+
+  // Voorwaardelijke opmaak: cap bereikt → groene achtergrond
+  var rule = SpreadsheetApp.newConditionalFormatRule()
+    .whenTextContains("Ja")
+    .setBackground("#d1fae5")
+    .setFontColor("#065f46")
+    .setRanges([overzichtSheet.getRange("H2:H200")])
+    .build();
+  overzichtSheet.setConditionalFormatRules([rule]);
+
+  SpreadsheetApp.getUi().alert("Klaar! Tabbladen 'Birdies' en 'Overzicht' zijn aangemaakt.");
 }
