@@ -127,10 +127,10 @@ function setupBetalingen() {
   }
 
   syncToernooien_(ss, sheet);
-  SpreadsheetApp.getUi().alert("Betalingen-tabblad aangemaakt!");
+  SpreadsheetApp.getUi().alert("Betalingen-tabblad aangemaakt! Gebruik 'Sync toernooien' om het up-to-date te houden.");
 }
 
-// Voegt toernooien toe die nog niet in Betalingen staan.
+// Voegt ontbrekende groepen toe en verwijdert groepen die niet meer bestaan.
 // Veilig om meerdere keren te draaien (idempotent).
 function syncToernooien() {
   var ss = SpreadsheetApp.openById(SHEET_ID);
@@ -139,10 +139,11 @@ function syncToernooien() {
     SpreadsheetApp.getUi().alert("Maak eerst het Betalingen-tabblad aan via Setup Betalingen.");
     return;
   }
-  var added = syncToernooien_(ss, sheet);
-  SpreadsheetApp.getUi().alert(
-    added === 0 ? "Alles is al up-to-date." : added + " nieuw(e) toernooi(en) toegevoegd."
-  );
+  var result = syncToernooien_(ss, sheet);
+  var msg = [];
+  if (result.added > 0)   msg.push(result.added + " groep(en) toegevoegd.");
+  if (result.removed > 0) msg.push(result.removed + " groep(en) verwijderd.");
+  SpreadsheetApp.getUi().alert(msg.length > 0 ? msg.join(" ") : "Alles is al up-to-date.");
 }
 
 function syncToernooien_(ss, betalingen) {
@@ -192,6 +193,26 @@ function syncToernooien_(ss, betalingen) {
     ? betalingen.getRange(2, 1, lastRow - 1, 1).getValues()
     : [];
 
+  // Verwijder groepen die niet meer bestaan (van rechts naar links om index-verschuiving te voorkomen)
+  var validLabels = {};
+  for (var v = 0; v < groups.length; v++) validLabels[groups[v].label] = true;
+
+  var removed = 0;
+  var currentHeaders = betalingen.getRange(1, 1, 1, betalingen.getLastColumn()).getValues()[0];
+  for (var c = currentHeaders.length - 1; c >= 1; c--) {
+    var hdr = currentHeaders[c].toString();
+    if (hdr.indexOf(" BETAALD") !== -1) {
+      var groepLabel = hdr.replace(" BETAALD", "").trim();
+      if (!validLabels[groepLabel]) {
+        // Verwijder de BETAALD-kolom en de bijbehorende BEDRAG-kolom links ervan
+        betalingen.deleteColumn(c + 1); // BETAALD (1-based)
+        betalingen.deleteColumn(c);     // BEDRAG  (1-based, nu één opgeschoven)
+        removed++;
+      }
+    }
+  }
+
+  // Voeg ontbrekende groepen toe
   var added = 0;
   for (var t = 0; t < groups.length; t++) {
     var groep = groups[t];
@@ -233,7 +254,7 @@ function syncToernooien_(ss, betalingen) {
 
     added++;
   }
-  return added;
+  return { added: added, removed: removed };
 }
 
 // Toont per sponsor het openstaande bedrag per groep van 3 toernooien.
