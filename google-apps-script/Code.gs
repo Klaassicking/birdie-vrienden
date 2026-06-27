@@ -233,7 +233,7 @@ function syncToernooien_(ss, betalingen) {
   return added;
 }
 
-// Toont per sponsor het totaal van alle open (onbetaalde) toernooien.
+// Toont per sponsor per toernooi het bedrag en de betaalstatus.
 function genereerBetaalverzoek() {
   var ss         = SpreadsheetApp.openById(SHEET_ID);
   var betalingen = ss.getSheetByName("Betalingen");
@@ -245,25 +245,33 @@ function genereerBetaalverzoek() {
   var data    = betalingen.getDataRange().getValues();
   var headers = data[0];
   var lines   = [];
+  var iemandOpen = false;
 
   for (var i = 1; i < data.length; i++) {
     var naam = data[i][0];
     if (!naam) continue;
 
-    var totaal = 0;
-    var open   = [];
+    var sponsorLines = [];
+    var totaalOpen = 0;
+
     for (var j = 1; j + 1 < headers.length; j += 2) {
-      if (data[i][j + 1] === "Open" && data[i][j]) {
-        totaal += parseFloat(data[i][j]) || 0;
-        open.push(headers[j].replace(" BEDRAG", "").trim());
-      }
+      var label   = headers[j].replace(" BEDRAG", "").trim();
+      var bedrag  = parseFloat(data[i][j]) || 0;
+      var status  = data[i][j + 1] || "Open";
+      var vinkje  = status === "Betaald" ? "✓" : "○";
+      sponsorLines.push("  " + vinkje + " " + label + ": €" + bedrag.toFixed(2) + "  [" + status + "]");
+      if (status === "Open") totaalOpen += bedrag;
     }
-    if (totaal > 0) {
-      lines.push(naam + "  →  €" + totaal.toFixed(2) + "  (" + open.join(", ") + ")");
+
+    if (sponsorLines.length > 0) {
+      if (totaalOpen > 0) iemandOpen = true;
+      lines.push(naam + (totaalOpen > 0 ? "  (open: €" + totaalOpen.toFixed(2) + ")" : "  ✓ alles betaald"));
+      lines = lines.concat(sponsorLines);
+      lines.push("");
     }
   }
 
-  if (lines.length === 0) {
+  if (!iemandOpen) {
     SpreadsheetApp.getUi().alert("✓ Alle sponsors hebben betaald!");
     return;
   }
