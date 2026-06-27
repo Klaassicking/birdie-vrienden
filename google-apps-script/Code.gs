@@ -78,6 +78,7 @@ function onOpen() {
     .createMenu('Birdie Vrienden')
     .addItem('Setup Overzicht + Birdies', 'setupOverzicht')
     .addItem('Setup Betalingen', 'setupBetalingen')
+    .addItem('Refresh Overzicht formulas', 'refreshOverzichtFormulas')
     .addSeparator()
     .addItem('Sync toernooien naar Betalingen', 'syncToernooien')
     .addSeparator()
@@ -274,6 +275,39 @@ function genereerBetaalverzoek() {
   );
 }
 
+// Herplaatst alleen de formules in Overzicht – raakt Birdies niet aan.
+function refreshOverzichtFormulas() {
+  var ss = SpreadsheetApp.openById(SHEET_ID);
+  var overzichtSheet = ss.getSheetByName("Overzicht");
+  if (!overzichtSheet) {
+    SpreadsheetApp.getUi().alert("Overzicht-tabblad niet gevonden. Voer Setup Overzicht uit.");
+    return;
+  }
+  overzichtSheet.getRange(2, 1, 199, 8).setFormulas(buildOverzichtFormulas_());
+  SpreadsheetApp.getUi().alert("Overzicht formulas bijgewerkt.");
+}
+
+function buildOverzichtFormulas_() {
+  var formulas = [];
+  for (var r = 2; r <= 200; r++) {
+    formulas.push([
+      '=IF(Aanmeldingen!B' + r + '="";"";Aanmeldingen!B' + r + ')',
+      '=IF(Aanmeldingen!C' + r + '="";"";Aanmeldingen!C' + r + ')',
+      '=IF(Aanmeldingen!E' + r + '="";"";Aanmeldingen!E' + r + ')',
+      '=IF(Aanmeldingen!F' + r + '="";"";Aanmeldingen!F' + r + ')',
+      '=IF(Aanmeldingen!B' + r + '="";"";IF(Aanmeldingen!G' + r + '="";"–";Aanmeldingen!G' + r + '))',
+      '=IF(Aanmeldingen!B' + r + '="";"";SUM(Birdies!C:C))',
+      '=IF(Aanmeldingen!B' + r + '="";"";' +
+        'IF(Aanmeldingen!G' + r + '="";Aanmeldingen!F' + r + '*SUM(Birdies!C:C);' +
+        'MIN(Aanmeldingen!F' + r + '*SUM(Birdies!C:C);Aanmeldingen!G' + r + ')))',
+      '=IF(Aanmeldingen!B' + r + '="";"";' +
+        'IF(Aanmeldingen!G' + r + '="";"–";' +
+        'IF(Aanmeldingen!F' + r + '*SUM(Birdies!C:C)>=Aanmeldingen!G' + r + ';"✓ Ja";"Nee")))',
+    ]);
+  }
+  return formulas;
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Eenmalig uitvoeren via de Apps Script editor: selecteer setupOverzicht en
 // klik op "Uitvoeren". Maakt de tabbladen "Birdies" en "Overzicht" aan.
@@ -334,41 +368,7 @@ function setupOverzicht() {
     .setFontColor("#ffffff")
     .setFontWeight("bold");
 
-  // Formules voor rijen 2 t/m 200 (trekken data uit Aanmeldingen + Birdies)
-  //
-  // Aanmeldingen kolommen:
-  //   B=naam  C=email  E=bedrijf  F=per_birdie  G=max_seizoen
-  //
-  // Totaal birdies = SOM van Birdies!C:C (dezelfde waarde voor iedereen)
-  // Berekend bedrag = per_birdie * totaal_birdies, afgetopt op max_seizoen
-  var formulas = [];
-  for (var r = 2; r <= 200; r++) {
-    var aanmRow = r; // Aanmeldingen en Overzicht lopen gelijk op
-    formulas.push([
-      // A: naam
-      '=IF(Aanmeldingen!B' + aanmRow + '="";"";Aanmeldingen!B' + aanmRow + ')',
-      // B: email
-      '=IF(Aanmeldingen!C' + aanmRow + '="";"";Aanmeldingen!C' + aanmRow + ')',
-      // C: bedrijf
-      '=IF(Aanmeldingen!E' + aanmRow + '="";"";Aanmeldingen!E' + aanmRow + ')',
-      // D: per_birdie
-      '=IF(Aanmeldingen!F' + aanmRow + '="";"";Aanmeldingen!F' + aanmRow + ')',
-      // E: max_seizoen
-      '=IF(Aanmeldingen!G' + aanmRow + '="";"–";Aanmeldingen!G' + aanmRow + ')',
-      // F: totaal birdies (som van het Birdies-tabblad, zelfde voor iedereen)
-      '=IF(Aanmeldingen!B' + aanmRow + '="";"";SUM(Birdies!C:C))',
-      // G: berekend bedrag
-      '=IF(Aanmeldingen!B' + aanmRow + '="";"";' +
-        'IF(Aanmeldingen!G' + aanmRow + '="";Aanmeldingen!F' + aanmRow + '*SUM(Birdies!C:C);' +
-        'MIN(Aanmeldingen!F' + aanmRow + '*SUM(Birdies!C:C);Aanmeldingen!G' + aanmRow + ')))',
-      // H: cap bereikt?
-      '=IF(Aanmeldingen!B' + aanmRow + '="";"";' +
-        'IF(Aanmeldingen!G' + aanmRow + '="";"–";' +
-        'IF(Aanmeldingen!F' + aanmRow + '*SUM(Birdies!C:C)>=Aanmeldingen!G' + aanmRow + ';"✓ Ja";"Nee")))',
-    ]);
-  }
-
-  overzichtSheet.getRange(2, 1, 199, 8).setFormulas(formulas);
+  overzichtSheet.getRange(2, 1, 199, 8).setFormulas(buildOverzichtFormulas_());
 
   // Getalnotatie voor bedragen
   overzichtSheet.getRange("D2:E200").setNumberFormat('€#,##0.00');
