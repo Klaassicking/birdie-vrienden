@@ -184,22 +184,26 @@ function syncToernooien_(ss, betalingen) {
     }
   }
 
-  // Sponsor map: naam → { perBirdie, joinDate }
+  // Sponsor map: naam → { perBirdie, maxSeizoen, joinDate }
   var aanmData = aanmSheet.getDataRange().getValues();
   var sponsorMap = {};
   for (var s = 1; s < aanmData.length; s++) {
     if (aanmData[s][1]) {
       sponsorMap[aanmData[s][1]] = {
-        perBirdie: parseFloat(aanmData[s][5]) || 0,
-        joinDate:  aanmData[s][0] ? new Date(aanmData[s][0]) : null
+        perBirdie:  parseFloat(aanmData[s][5]) || 0,
+        maxSeizoen: aanmData[s][6] !== "" ? parseFloat(aanmData[s][6]) : null,
+        joinDate:   aanmData[s][0] ? new Date(aanmData[s][0]) : null
       };
     }
   }
 
-  // Sponsornamen uit Betalingen
+  // Alle huidige data uit Betalingen (voor cap-berekening op basis van eerdere groepen)
   var lastRow = betalingen.getLastRow();
   var sponsorNames = lastRow > 1
     ? betalingen.getRange(2, 1, lastRow - 1, 1).getValues()
+    : [];
+  var betalingenData = lastRow > 1
+    ? betalingen.getRange(2, 1, lastRow - 1, betalingen.getLastColumn()).getValues()
     : [];
 
   // Verwijder groepen die niet meer bestaan (van rechts naar links om index-verschuiving te voorkomen)
@@ -240,7 +244,8 @@ function syncToernooien_(ss, betalingen) {
     for (var r = 0; r < sponsorNames.length; r++) {
       var naam = sponsorNames[r][0];
       if (!naam) continue;
-      var sponsor   = sponsorMap[naam] || { perBirdie: 0, joinDate: null };
+      var sponsor = sponsorMap[naam] || { perBirdie: 0, maxSeizoen: null, joinDate: null };
+
       // Tel alleen birdies mee van toernooien na de joindatum
       var eligibleBirdies = 0;
       for (var ti = 0; ti < groep.tournaments.length; ti++) {
@@ -249,7 +254,21 @@ function syncToernooien_(ss, betalingen) {
           eligibleBirdies += toernooi.birdies;
         }
       }
-      var bedrag = sponsor.perBirdie * eligibleBirdies;
+      var rawBedrag = sponsor.perBirdie * eligibleBirdies;
+
+      // Pas seizoenscap toe: trek al betaalde bedragen in eerdere groepen af
+      var bedrag = rawBedrag;
+      if (sponsor.maxSeizoen !== null) {
+        var reedsBerekend = 0;
+        var rij = betalingenData[r] || [];
+        // BEDRAG-kolommen staan op oneven posities (0-based: 1, 3, 5, …)
+        for (var col = 1; col < rij.length; col += 2) {
+          reedsBerekend += parseFloat(rij[col]) || 0;
+        }
+        var resterendeCap = Math.max(0, sponsor.maxSeizoen - reedsBerekend);
+        bedrag = Math.min(rawBedrag, resterendeCap);
+      }
+
       betalingen.getRange(r + 2, bedragCol).setValue(bedrag).setNumberFormat('€#,##0.00');
       betalingen.getRange(r + 2, betaaldCol).setValue("Open");
     }
