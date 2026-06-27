@@ -308,11 +308,6 @@
         <div class="error-msg" id="err-telefoon">Vul je telefoonnummer in.</div>
       </div>
 
-      <div class="field">
-        <label for="bedrijf">Bedrijfsnaam <span class="opt">(optioneel)</span></label>
-        <input type="text" id="bedrijf" placeholder="Alleen indien namens bedrijf" />
-      </div>
-
       <hr class="divider" />
       <p class="section-label">Jouw sponsorbedrag</p>
 
@@ -418,7 +413,6 @@
       naam:        naam.value.trim(),
       email:       email.value.trim(),
       telefoon:    document.getElementById('telefoon').value.trim(),
-      bedrijf:     document.getElementById('bedrijf').value.trim(),
       per_birdie:  parseFloat(birdie.value),
       max_seizoen: parseFloat(document.getElementById('max-seizoen').value) || null,
       whatsapp:    document.getElementById('whatsapp').checked,

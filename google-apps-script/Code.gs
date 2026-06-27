@@ -19,7 +19,7 @@ var SHEET_ID   = "1OFt91SSoiKGjSYIfT_mmaTUGJ2yKZSAH55oXfFvBwR8";
 var SHEET_NAME = "Aanmeldingen";
 
 // Kolomvolgorde in de sheet (pas aan als je kolommen wilt herordenen)
-var COLUMNS = ["timestamp", "naam", "email", "telefoon", "bedrijf", "per_birdie", "max_seizoen", "whatsapp"];
+var COLUMNS = ["timestamp", "naam", "email", "telefoon", "per_birdie", "max_seizoen", "whatsapp"];
 
 function doPost(e) {
   try {
@@ -42,7 +42,6 @@ function doPost(e) {
       data.naam        || "",
       data.email       || "",
       data.telefoon    || "",
-      data.bedrijf     || "",
       data.per_birdie  != null ? data.per_birdie : "",
       data.max_seizoen != null ? data.max_seizoen : "",
       data.whatsapp    ? "Ja" : "Nee",
@@ -190,8 +189,8 @@ function syncToernooien_(ss, betalingen) {
   for (var s = 1; s < aanmData.length; s++) {
     if (aanmData[s][1]) {
       sponsorMap[aanmData[s][1]] = {
-        perBirdie:  parseFloat(aanmData[s][5]) || 0,
-        maxSeizoen: aanmData[s][6] !== "" ? parseFloat(aanmData[s][6]) : null,
+        perBirdie:  parseFloat(aanmData[s][4]) || 0,
+        maxSeizoen: aanmData[s][5] !== "" ? parseFloat(aanmData[s][5]) : null,
         joinDate:   aanmData[s][0] ? new Date(aanmData[s][0]) : null
       };
     }
@@ -348,6 +347,7 @@ function refreshOverzichtFormulas() {
   SpreadsheetApp.getUi().alert("Overzicht formulas bijgewerkt.");
 }
 
+// Aanmeldingen kolommen: B=naam C=email D=telefoon E=per_birdie F=max_seizoen G=whatsapp
 function buildOverzichtFormulas_() {
   var formulas = [];
   for (var r = 2; r <= 200; r++) {
@@ -355,15 +355,14 @@ function buildOverzichtFormulas_() {
       '=IF(Aanmeldingen!B' + r + '="";"";Aanmeldingen!B' + r + ')',
       '=IF(Aanmeldingen!C' + r + '="";"";Aanmeldingen!C' + r + ')',
       '=IF(Aanmeldingen!E' + r + '="";"";Aanmeldingen!E' + r + ')',
-      '=IF(Aanmeldingen!F' + r + '="";"";Aanmeldingen!F' + r + ')',
-      '=IF(Aanmeldingen!B' + r + '="";"";IF(Aanmeldingen!G' + r + '="";"–";Aanmeldingen!G' + r + '))',
+      '=IF(Aanmeldingen!B' + r + '="";"";IF(Aanmeldingen!F' + r + '="";"–";Aanmeldingen!F' + r + '))',
       '=IF(Aanmeldingen!B' + r + '="";"";SUM(Birdies!C:C))',
       '=IF(Aanmeldingen!B' + r + '="";"";' +
-        'IF(Aanmeldingen!G' + r + '="";Aanmeldingen!F' + r + '*SUM(Birdies!C:C);' +
-        'MIN(Aanmeldingen!F' + r + '*SUM(Birdies!C:C);Aanmeldingen!G' + r + ')))',
+        'IF(Aanmeldingen!F' + r + '="";Aanmeldingen!E' + r + '*SUM(Birdies!C:C);' +
+        'MIN(Aanmeldingen!E' + r + '*SUM(Birdies!C:C);Aanmeldingen!F' + r + ')))',
       '=IF(Aanmeldingen!B' + r + '="";"";' +
-        'IF(Aanmeldingen!G' + r + '="";"–";' +
-        'IF(Aanmeldingen!F' + r + '*SUM(Birdies!C:C)>=Aanmeldingen!G' + r + ';"✓ Ja";"Nee")))',
+        'IF(Aanmeldingen!F' + r + '="";"–";' +
+        'IF(Aanmeldingen!E' + r + '*SUM(Birdies!C:C)>=Aanmeldingen!F' + r + ';"✓ Ja";"Nee")))',
     ]);
   }
   return formulas;
@@ -423,35 +422,35 @@ function setupOverzicht() {
 
   // Kolomkoppen
   var headers = [
-    "NAAM", "EMAIL", "BEDRIJF", "PER BIRDIE (€)",
+    "NAAM", "EMAIL", "PER BIRDIE (€)",
     "MAX SEIZOEN (€)", "TOTAAL BIRDIES", "BEREKEND BEDRAG (€)", "CAP BEREIKT?"
   ];
   overzichtSheet.appendRow(headers);
   overzichtSheet.setFrozenRows(1);
 
   // Kolombreedte
-  [140, 200, 160, 130, 130, 120, 160, 110].forEach(function(w, i) {
+  [140, 200, 130, 130, 120, 160, 110].forEach(function(w, i) {
     overzichtSheet.setColumnWidth(i + 1, w);
   });
 
   // Opmaak kolomkop
-  overzichtSheet.getRange("A1:H1")
+  overzichtSheet.getRange("A1:G1")
     .setBackground("#9D174D")
     .setFontColor("#ffffff")
     .setFontWeight("bold");
 
-  overzichtSheet.getRange(2, 1, 199, 8).setFormulas(buildOverzichtFormulas_());
+  overzichtSheet.getRange(2, 1, 199, 7).setFormulas(buildOverzichtFormulas_());
 
   // Getalnotatie voor bedragen
-  overzichtSheet.getRange("D2:E200").setNumberFormat('€#,##0.00');
-  overzichtSheet.getRange("G2:G200").setNumberFormat('€#,##0.00');
+  overzichtSheet.getRange("C2:D200").setNumberFormat('€#,##0.00');
+  overzichtSheet.getRange("F2:F200").setNumberFormat('€#,##0.00');
 
   // Voorwaardelijke opmaak: cap bereikt → groene achtergrond
   var rule = SpreadsheetApp.newConditionalFormatRule()
     .whenTextContains("Ja")
     .setBackground("#d1fae5")
     .setFontColor("#065f46")
-    .setRanges([overzichtSheet.getRange("H2:H200")])
+    .setRanges([overzichtSheet.getRange("G2:G200")])
     .build();
   overzichtSheet.setConditionalFormatRules([rule]);
 
