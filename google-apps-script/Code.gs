@@ -335,7 +335,7 @@ function genereerBetaalverzoek() {
   );
 }
 
-// Herplaatst alleen de formules in Overzicht – raakt Birdies niet aan.
+// Herbouwt het Overzicht-tabblad volledig (koppen + formules + opmaak) zonder Birdies aan te raken.
 function refreshOverzichtFormulas() {
   var ss = SpreadsheetApp.openById(SHEET_ID);
   var overzichtSheet = ss.getSheetByName("Overzicht");
@@ -343,8 +343,33 @@ function refreshOverzichtFormulas() {
     SpreadsheetApp.getUi().alert("Overzicht-tabblad niet gevonden. Voer Setup Overzicht uit.");
     return;
   }
-  overzichtSheet.getRange(2, 1, 199, 8).setFormulas(buildOverzichtFormulas_());
-  SpreadsheetApp.getUi().alert("Overzicht formulas bijgewerkt.");
+
+  overzichtSheet.clear();
+  overzichtSheet.clearDataValidations();
+  overzichtSheet.setConditionalFormatRules([]);
+
+  var headers = ["NAAM", "EMAIL", "PER BIRDIE (€)", "MAX SEIZOEN (€)", "TOTAAL BIRDIES", "BEREKEND BEDRAG (€)", "CAP BEREIKT?"];
+  overzichtSheet.appendRow(headers);
+  overzichtSheet.setFrozenRows(1);
+
+  [140, 200, 130, 130, 120, 160, 110].forEach(function(w, i) {
+    overzichtSheet.setColumnWidth(i + 1, w);
+  });
+  overzichtSheet.getRange("A1:G1")
+    .setBackground("#9D174D").setFontColor("#ffffff").setFontWeight("bold");
+
+  overzichtSheet.getRange(2, 1, 199, 7).setFormulas(buildOverzichtFormulas_());
+  overzichtSheet.getRange("C2:D200").setNumberFormat('€#,##0.00');
+  overzichtSheet.getRange("F2:F200").setNumberFormat('€#,##0.00');
+
+  var rule = SpreadsheetApp.newConditionalFormatRule()
+    .whenTextContains("Ja")
+    .setBackground("#d1fae5").setFontColor("#065f46")
+    .setRanges([overzichtSheet.getRange("G2:G200")])
+    .build();
+  overzichtSheet.setConditionalFormatRules([rule]);
+
+  SpreadsheetApp.getUi().alert("Overzicht bijgewerkt.");
 }
 
 // Aanmeldingen kolommen: B=naam C=email D=telefoon E=per_birdie F=max_seizoen G=whatsapp
