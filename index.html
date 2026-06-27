@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Birdie Vrienden – Word Sponsor</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=DM+Serif+Display&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --pink:   #F472B6;
+      --pink-l: #FDF2F8;
+      --pink-d: #9D174D;
+      --lila:   #A78BFA;
+      --lila-l: #F5F3FF;
+      --blue:   #93C5FD;
+      --blue-l: #EFF6FF;
+      --text:   #1e1b2e;
+      --muted:  #6b6880;
+      --border: #e8e4f0;
+      --bg:     #fefcff;
+      --card:   #ffffff;
+      --radius: 16px;
+    }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0;
+    }
+
+    /* Hero */
+    .hero {
+      background: linear-gradient(135deg, #fce7f3 0%, #ede9fe 50%, #dbeafe 100%);
+      padding: 3.5rem 1.5rem 2.5rem;
+      text-align: center;
+    }
+    .birdie-icon {
+      font-size: 3rem;
+      display: block;
+      margin-bottom: 0.75rem;
+      animation: bob 2.5s ease-in-out infinite;
+    }
+    @keyframes bob {
+      0%, 100% { transform: translateY(0); }
+      50%       { transform: translateY(-6px); }
+    }
+    .hero h1 {
+      font-family: 'DM Serif Display', serif;
+      font-size: clamp(2rem, 5vw, 3rem);
+      color: var(--pink-d);
+      letter-spacing: -0.02em;
+      line-height: 1.1;
+      margin-bottom: 0.75rem;
+    }
+    .hero p {
+      font-size: 1.05rem;
+      color: var(--muted);
+      max-width: 480px;
+      margin: 0 auto;
+      line-height: 1.65;
+    }
+    .pill-row {
+      display: flex;
+      justify-content: center;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      margin-top: 1.25rem;
+    }
+    .pill {
+      font-size: 0.78rem;
+      font-weight: 500;
+      padding: 0.3rem 0.85rem;
+      border-radius: 999px;
+    }
+    .pill-pink  { background: #fbcfe8; color: #831843; }
+    .pill-lila  { background: #ddd6fe; color: #4c1d95; }
+    .pill-blue  { background: #bfdbfe; color: #1e3a8a; }
+
+    /* Form card */
+    .form-wrap {
+      max-width: 560px;
+      margin: 2rem auto;
+      padding: 0 1.25rem 4rem;
+    }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 2rem 2rem;
+      box-shadow: 0 2px 24px rgba(167,139,250,0.08);
+    }
+
+    .section-label {
+      font-size: 0.72rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--lila);
+      margin-bottom: 1rem;
+      margin-top: 1.75rem;
+    }
+    .section-label:first-child { margin-top: 0; }
+
+    .field { margin-bottom: 1.1rem; }
+    .field label {
+      display: block;
+      font-size: 0.88rem;
+      font-weight: 500;
+      color: var(--text);
+      margin-bottom: 0.35rem;
+    }
+    .field label .opt {
+      font-weight: 400;
+      color: var(--muted);
+      font-size: 0.82rem;
+    }
+    .field input[type="text"],
+    .field input[type="email"],
+    .field input[type="tel"],
+    .field input[type="number"] {
+      width: 100%;
+      padding: 0.65rem 0.9rem;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.95rem;
+      color: var(--text);
+      background: #fafafa;
+      transition: border-color 0.15s, box-shadow 0.15s;
+      outline: none;
+    }
+    .field input:focus {
+      border-color: var(--lila);
+      box-shadow: 0 0 0 3px rgba(167,139,250,0.18);
+      background: #fff;
+    }
+    .hint {
+      font-size: 0.78rem;
+      color: var(--muted);
+      margin-top: 0.3rem;
+      line-height: 1.5;
+    }
+
+    /* Amount grid */
+    .amount-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.75rem;
+    }
+
+    /* Preset buttons */
+    .preset-row {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      margin-bottom: 0.5rem;
+    }
+    .preset {
+      border: 1px solid var(--border);
+      background: var(--lila-l);
+      color: #4c1d95;
+      font-size: 0.82rem;
+      font-weight: 500;
+      padding: 0.3rem 0.75rem;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.12s, border-color 0.12s;
+    }
+    .preset:hover, .preset.active {
+      background: #ddd6fe;
+      border-color: var(--lila);
+    }
+
+    /* Checkbox */
+    .check-wrap {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.75rem;
+      background: var(--pink-l);
+      border: 1px solid #fbcfe8;
+      border-radius: 12px;
+      padding: 0.85rem 1rem;
+      cursor: pointer;
+    }
+    .check-wrap input[type="checkbox"] {
+      width: 18px;
+      height: 18px;
+      flex-shrink: 0;
+      margin-top: 2px;
+      accent-color: var(--pink);
+      cursor: pointer;
+    }
+    .check-wrap .check-text {
+      font-size: 0.9rem;
+      line-height: 1.5;
+      color: var(--text);
+    }
+    .check-wrap .check-sub {
+      font-size: 0.78rem;
+      color: var(--muted);
+      margin-top: 0.2rem;
+    }
+
+    /* Divider */
+    .divider {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 1.5rem 0;
+    }
+
+    /* Submit */
+    .btn {
+      display: block;
+      width: 100%;
+      padding: 0.9rem;
+      background: linear-gradient(135deg, #f472b6, #a78bfa);
+      color: white;
+      border: none;
+      border-radius: 12px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      letter-spacing: 0.01em;
+      transition: opacity 0.15s, transform 0.1s;
+      margin-top: 1.5rem;
+    }
+    .btn:hover  { opacity: 0.92; }
+    .btn:active { transform: scale(0.98); }
+    .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+    /* Thank you state */
+    .thankyou {
+      display: none;
+      text-align: center;
+      padding: 2.5rem 1rem;
+    }
+    .thankyou .big-bird { font-size: 3.5rem; margin-bottom: 1rem; }
+    .thankyou h2 {
+      font-family: 'DM Serif Display', serif;
+      font-size: 1.9rem;
+      color: var(--pink-d);
+      margin-bottom: 0.6rem;
+    }
+    .thankyou p { color: var(--muted); font-size: 0.95rem; line-height: 1.65; }
+
+    /* Error */
+    .error-msg {
+      display: none;
+      font-size: 0.8rem;
+      color: #be185d;
+      margin-top: 0.3rem;
+    }
+    input.invalid { border-color: #f9a8d4 !important; }
+
+    @media (max-width: 480px) {
+      .card { padding: 1.5rem 1.25rem; }
+      .amount-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="hero">
+  <span class="birdie-icon">🐦</span>
+  <h1>Word Birdie Vriend</h1>
+  <p>Steun ons team per birdie die we maken. Jij kiest het bedrag — wij zorgen voor de birdies.</p>
+  <div class="pill-row">
+    <span class="pill pill-pink">Per birdie</span>
+    <span class="pill pill-lila">Met seizoenscap</span>
+    <span class="pill pill-blue">Betalen per maand</span>
+  </div>
+</div>
+
+<div class="form-wrap">
+  <div class="card">
+
+    <div id="form-state">
+      <p class="section-label">Jouw gegevens</p>
+
+      <div class="field">
+        <label for="naam">Naam <span class="opt">(verplicht)</span></label>
+        <input type="text" id="naam" placeholder="Voor- en achternaam" autocomplete="name" />
+        <div class="error-msg" id="err-naam">Vul je naam in.</div>
+      </div>
+
+      <div class="field">
+        <label for="email">E-mailadres <span class="opt">(verplicht)</span></label>
+        <input type="email" id="email" placeholder="jij@voorbeeld.nl" autocomplete="email" />
+        <div class="error-msg" id="err-email">Vul een geldig e-mailadres in.</div>
+      </div>
+
+      <div class="field">
+        <label for="telefoon">Telefoonnummer <span class="opt">(optioneel)</span></label>
+        <input type="tel" id="telefoon" placeholder="+31 6 ..." autocomplete="tel" />
+      </div>
+
+      <div class="field">
+        <label for="bedrijf">Bedrijfsnaam <span class="opt">(optioneel)</span></label>
+        <input type="text" id="bedrijf" placeholder="Alleen indien namens bedrijf" />
+      </div>
+
+      <hr class="divider" />
+      <p class="section-label">Jouw sponsorbedrag</p>
+
+      <div class="amount-grid">
+        <div class="field">
+          <label for="per-birdie">Bedrag per birdie (€)</label>
+          <div class="preset-row">
+            <button class="preset" data-val="1" onclick="setPreset(this,'per-birdie')">€1</button>
+            <button class="preset" data-val="2" onclick="setPreset(this,'per-birdie')">€2</button>
+            <button class="preset" data-val="5" onclick="setPreset(this,'per-birdie')">€5</button>
+          </div>
+          <input type="number" id="per-birdie" placeholder="Eigen bedrag" min="0.5" step="0.5" />
+          <div class="error-msg" id="err-birdie">Vul een bedrag in (min. €0,50).</div>
+        </div>
+
+        <div class="field">
+          <label for="max-seizoen">Max per seizoen (€)</label>
+          <div class="preset-row">
+            <button class="preset" data-val="25"  onclick="setPreset(this,'max-seizoen')">€25</button>
+            <button class="preset" data-val="50"  onclick="setPreset(this,'max-seizoen')">€50</button>
+            <button class="preset" data-val="100" onclick="setPreset(this,'max-seizoen')">€100</button>
+          </div>
+          <input type="number" id="max-seizoen" placeholder="Eigen cap" min="5" step="5" />
+          <p class="hint">Eenmaal bereikt, geen verdere kosten die maand.</p>
+        </div>
+      </div>
+
+      <hr class="divider" />
+      <p class="section-label">Whatsapp groep</p>
+
+      <label class="check-wrap" for="whatsapp">
+        <input type="checkbox" id="whatsapp" />
+        <div>
+          <div class="check-text">📲 Ja, voeg mij toe aan de Birdie Vrienden WhatsApp-groep</div>
+          <div class="check-sub">Je ontvangt updates na elke ronde, geen spam.</div>
+        </div>
+      </label>
+
+      <button class="btn" id="submit-btn" onclick="submitForm()">Aanmelden als Birdie Vriend 🐦</button>
+    </div>
+
+    <div class="thankyou" id="thankyou-state">
+      <div class="big-bird">🎉</div>
+      <h2>Welkom, Birdie Vriend!</h2>
+      <p>Je aanmelding is ontvangen. We sturen je aan het einde van elke maand een Tikkie op basis van de birdies die maand — tot je seizoenscap is bereikt.</p>
+      <p style="margin-top:0.75rem;">Controleer je inbox voor een bevestiging.</p>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  // ─────────────────────────────────────────────────────────────────
+  // STAP 1: Plak hier de Web App URL die je krijgt na het deployen
+  //         van google-apps-script/Code.gs in Google Apps Script.
+  //
+  //   Formaat: https://script.google.com/macros/s/JOUW_ID/exec
+  // ─────────────────────────────────────────────────────────────────
+  const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzkR4qgGBLJnd0ilJk2aQKBUGDT1sBeWnKFGdWZo_Vg79Iu_bcBpiodMoO866FGvWCE/exec";
+
+  function setPreset(btn, fieldId) {
+    document.getElementById(fieldId).value = btn.dataset.val;
+    btn.closest('.field').querySelectorAll('.preset').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+  }
+
+  function submitForm() {
+    let ok = true;
+
+    const naam   = document.getElementById('naam');
+    const email  = document.getElementById('email');
+    const birdie = document.getElementById('per-birdie');
+
+    [naam, email, birdie].forEach(el => el.classList.remove('invalid'));
+    ['err-naam','err-email','err-birdie'].forEach(id => document.getElementById(id).style.display = 'none');
+
+    if (!naam.value.trim()) {
+      naam.classList.add('invalid');
+      document.getElementById('err-naam').style.display = 'block';
+      ok = false;
+    }
+    const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRe.test(email.value.trim())) {
+      email.classList.add('invalid');
+      document.getElementById('err-email').style.display = 'block';
+      ok = false;
+    }
+    if (!birdie.value || parseFloat(birdie.value) < 0.5) {
+      birdie.classList.add('invalid');
+      document.getElementById('err-birdie').style.display = 'block';
+      ok = false;
+    }
+
+    if (!ok) return;
+
+    const btn = document.getElementById('submit-btn');
+    btn.disabled = true;
+    btn.textContent = 'Bezig met verzenden…';
+
+    const payload = {
+      naam:        naam.value.trim(),
+      email:       email.value.trim(),
+      telefoon:    document.getElementById('telefoon').value.trim(),
+      bedrijf:     document.getElementById('bedrijf').value.trim(),
+      per_birdie:  parseFloat(birdie.value),
+      max_seizoen: parseFloat(document.getElementById('max-seizoen').value) || null,
+      whatsapp:    document.getElementById('whatsapp').checked,
+    };
+
+    fetch(APPS_SCRIPT_URL, {
+      method: 'POST',
+      // Apps Script Web Apps require no-cors when called cross-origin from a browser.
+      // The response will be opaque (status 0) but the data is still written to the sheet.
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify(payload),
+    })
+    .then(() => showThanks())
+    .catch(() => {
+      btn.disabled = false;
+      btn.textContent = 'Aanmelden als Birdie Vriend 🐦';
+      alert('Er ging iets mis. Controleer je internetverbinding en probeer opnieuw.');
+    });
+  }
+
+  function showThanks() {
+    document.getElementById('form-state').style.display = 'none';
+    document.getElementById('thankyou-state').style.display = 'block';
+  }
+
+  // Sync preset highlight when user types manually
+  ['per-birdie','max-seizoen'].forEach(id => {
+    document.getElementById(id).addEventListener('input', function() {
+      this.closest('.field').querySelectorAll('.preset').forEach(b => {
+        b.classList.toggle('active', b.dataset.val === this.value);
+      });
+    });
+  });
+</script>
+
+</body>
+</html>
