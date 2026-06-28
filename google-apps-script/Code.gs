@@ -182,6 +182,78 @@ function setupBetalingen() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Eenmalige Sponsors – aanmaken
+// ─────────────────────────────────────────────────────────────────────────────
+function setupEenmaligSponsors() {
+  var ss = SpreadsheetApp.openById(SHEET_ID);
+
+  var sheet = ss.getSheetByName("Eenmalige Sponsors");
+  if (sheet) {
+    var ui = SpreadsheetApp.getUi();
+    var antwoord = ui.alert(
+      "Eenmalige Sponsors-tabblad bestaat al",
+      "Wil je het volledig opnieuw aanmaken? Alle data gaat verloren.",
+      ui.ButtonSet.YES_NO
+    );
+    if (antwoord !== ui.Button.YES) return;
+    sheet.clear();
+    sheet.clearDataValidations();
+    sheet.setConditionalFormatRules([]);
+  } else {
+    sheet = ss.insertSheet("Eenmalige Sponsors");
+  }
+
+  // ── Headers ────────────────────────────────────────────────────────────────
+  var headers = ["NAAM", "EMAIL", "TELEFOON", "BEDRAG (€)", "BETAALD"];
+  sheet.appendRow(headers);
+  sheet.setFrozenRows(1);
+  sheet.getRange("A1:E1")
+    .setBackground("#9D174D")
+    .setFontColor("#ffffff")
+    .setFontWeight("bold");
+
+  // ── Kolombreedtes ──────────────────────────────────────────────────────────
+  sheet.setColumnWidth(1, 180); // NAAM
+  sheet.setColumnWidth(2, 200); // EMAIL
+  sheet.setColumnWidth(3, 130); // TELEFOON
+  sheet.setColumnWidth(4, 130); // BEDRAG
+  sheet.setColumnWidth(5, 100); // BETAALD
+
+  // ── BEDRAG opmaak ──────────────────────────────────────────────────────────
+  sheet.getRange("D2:D200").setNumberFormat('€#,##0.00');
+
+  // ── BETAALD dropdown + voorwaardelijke opmaak ──────────────────────────────
+  var betaaldRange = sheet.getRange("E2:E200");
+  betaaldRange.setDataValidation(
+    SpreadsheetApp.newDataValidation()
+      .requireValueInList(["Ja", "Nee"], true)
+      .build()
+  );
+  sheet.setConditionalFormatRules([
+    SpreadsheetApp.newConditionalFormatRule()
+      .whenTextEqualTo("Ja")
+      .setBackground("#d1fae5").setFontColor("#065f46")
+      .setRanges([betaaldRange])
+      .build(),
+    SpreadsheetApp.newConditionalFormatRule()
+      .whenTextEqualTo("Nee")
+      .setBackground("#fee2e2").setFontColor("#991b1b")
+      .setRanges([betaaldRange])
+      .build()
+  ]);
+
+  // ── Totaalrij (rij 202, vast onder datagebied E2:E200) ────────────────────
+  sheet.getRange("A202").setValue("TOTAAL OPEN");
+  sheet.getRange("D202").setFormula('=SUMIF(E2:E200,"Nee",D2:D200)');
+  sheet.getRange("A202:E202")
+    .setBackground("#fdf2f8")
+    .setFontWeight("bold");
+  sheet.getRange("D202").setNumberFormat('€#,##0.00');
+
+  SpreadsheetApp.getUi().alert("Eenmalige Sponsors-tabblad aangemaakt.");
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Sync – publieke wrapper
 // ─────────────────────────────────────────────────────────────────────────────
 function syncToernooien() {
