@@ -23,10 +23,27 @@ var COLUMNS = ["timestamp", "naam", "email", "telefoon", "per_birdie", "max_seiz
 function doPost(e) {
   try {
     var data = JSON.parse(e.postData.contents);
+    var ss   = SpreadsheetApp.openById(SHEET_ID);
 
-    var ss    = SpreadsheetApp.openById(SHEET_ID);
+    if (data.type === "eenmalig") {
+      var eenSheet = ss.getSheetByName("Eenmalige Sponsors");
+      if (!eenSheet) {
+        eenSheet = ss.insertSheet("Eenmalige Sponsors");
+        eenSheet.appendRow(["NAAM", "EMAIL", "TELEFOON", "BEDRAG (€)", "BETAALD"]);
+        eenSheet.setFrozenRows(1);
+      }
+      eenSheet.appendRow([
+        data.naam     || "",
+        data.email    || "",
+        data.telefoon || "",
+        data.bedrag   != null ? parseFloat(data.bedrag) : "",
+        "Nee",
+      ]);
+      return buildResponse({ status: "ok", message: "Eenmalige sponsoring opgeslagen." });
+    }
+
+    // Bestaand gedrag: per-birdie naar Aanmeldingen
     var sheet = ss.getSheetByName(SHEET_NAME);
-
     if (!sheet) {
       sheet = ss.insertSheet(SHEET_NAME);
       sheet.appendRow(COLUMNS.map(function(c) { return c.toUpperCase(); }));
